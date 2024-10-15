@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Timetable</title>
+  <link rel="manifest" href="manifest.json"> <!-- Link to the manifest file -->
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      color: #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    /* Fixed header styling */
+    header {
+      width: 100%;
+      background-color: #007bff;
+      color: white;
+      padding: 20px;
+      text-align: center;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 1000; /* Ensure header is above other content */
+    }
+
+    .container {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      max-width: 400px;
+      text-align: center;
+      margin-top: 120px; /* Increase margin to push content below the header */
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    #day-name {
+      margin-bottom: 10px;
+      font-size: 1.2em;
+      font-weight: bold;
+    }
+
+    #timetable {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .timetable-item {
+      background: #e7f1ff;
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 5px;
+    }
+
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-bottom: 20px;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    #codeEntry {
+      display: flex;
+      flex-direction: column;
+    }
+
+    input {
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      width: 100%;
+    }
+
+    @media(min-width:768px){
+      .header{
+          position: fixed;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Fire Time</h1>
+  </header>
+
+  <div class="container" id="main-container">
+    <h1>Timetable</h1>
+
+    <!-- Code Entry Section -->
+    <div id="codeEntry">
+      <p>Please enter your unique code:</p>
+      <input type="text" id="userCodeInput" placeholder="Enter your code" />
+      <button id="submitCode">Submit</button>
+    </div>
+
+    <!-- Timetable Section (Hidden Initially) -->
+    <div id="timetableSection" style="display: none;">
+      <button id="toggleButton">Show Full Timetable</button>
+      <button id="backButton" style="display: none;">Back to Today's Timetable</button>
+      <div id="day-name"></div>
+      <div id="timetable"></div>
+    </div>
+
+    <!-- Install Prompt Button -->
+    <button id="installBtn" style="display:none;">Install App</button>
+  </div>
+
+  <script>
+    // Sample user-specific timetables
+    const userTimetables = {
+      '02445': { // Ishu
+        Monday: [
+          { person: 'Ishu', work: 'Jhaadu' },
+          { person: 'Ishu', work: 'Poncha' },
+        ],
+        Saturday: [
+            { person: 'Ishu', work: 'complete combinedly' }
+        ],
+        Sunday: [
+            { person: 'Ishu', work: 'complete combinedly' }
+        ],
+      },
+      '45474': { // Dhruv
+        Wednesday: [
+          { person: 'Dhruv', work: 'Jhaadu' },
+          { person: 'Dhruv', work: 'Poncha' },
+        ],
+        Saturday: [
+            { person: 'Dhruv', work: 'complete combinedly' }
+        ],
+        Sunday: [
+            { person: 'Dhruv', work: 'complete combinedly' }
+        ],
+      },
+      '75408': { // Prince
+        Thursday: [
+          { person: 'Rudra', work: 'Jhaadu' },
+          { person: 'Prince', work: 'Poncha' },
+        ],
+        Saturday: [
+            { person: 'Prince', work: 'complete combinedly' }
+        ],
+        Sunday: [
+            { person: 'Prince', work: 'complete combinedly' }
+        ],
+      },
+      '59945': { // Rudra
+        Friday: [
+          { person: 'Rudra', work: 'Jhaadu' },
+          { person: 'Prince', work: 'Poncha' },
+        ],
+        Saturday: [
+            { person: 'Rudra', work: 'complete combinedly' }
+        ],
+        Sunday: [
+            { person: 'Rudra', work: 'complete combinedly' }
+        ],
+      },
+      '88445': {
+        Tuesday: [ // Harsh
+          { person: 'Harsh', work: 'Jhaadu' },
+          { person: 'Harsh', work: 'Poncha' },
+        ],
+        Saturday: [
+            { person: 'Harsh', work: 'complete combinedly' }
+        ],
+        Sunday: [
+            { person: 'Harsh', work: 'complete combinedly' }
+        ],
+      }
+    };
+
+    const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+    const timetableContainer = document.getElementById('timetable');
+    const dayNameElement = document.getElementById('day-name');
+    const toggleButton = document.getElementById('toggleButton');
+    const backButton = document.getElementById('backButton');
+    const codeEntrySection = document.getElementById('codeEntry');
+    const timetableSection = document.getElementById('timetableSection');
+    const userCodeInput = document.getElementById('userCodeInput');
+    const submitCodeButton = document.getElementById('submitCode');
+    const installBtn = document.getElementById('installBtn');
+    
+    let deferredPrompt;
+    let userCode = localStorage.getItem('userCode'); 
+    let currentUserTimetable = null;
+
+    if (userCode && userTimetables[userCode]) {
+      currentUserTimetable = userTimetables[userCode];
+      codeEntrySection.style.display = 'none';
+      timetableSection.style.display = 'block';
+      showTimetable(today);
+    }
+
+    submitCodeButton.addEventListener('click', () => {
+      userCode = userCodeInput.value.trim();
+      if (userTimetables[userCode]) {
+        currentUserTimetable = userTimetables[userCode];
+        localStorage.setItem('userCode', userCode);
+        codeEntrySection.style.display = 'none';
+        timetableSection.style.display = 'block';
+        showTimetable(today);
+      } else {
+        alert('Invalid code! Please try again.');
+      }
+    });
+
+    function showTimetable(day) {
+      timetableContainer.innerHTML = ''; 
+      dayNameElement.textContent = day; 
+      const todaysTimetable = currentUserTimetable[day];
+      todaysTimetable.forEach(item => {
+        const div = document.createElement('div');
+        div.classList.add('timetable-item');
+        div.innerHTML = `<strong>${item.person}</strong> - ${item.work}`;
+        timetableContainer.appendChild(div);
+      });
+    }
+
+    toggleButton.addEventListener('click', () => {
+      showFullTimetable();
+      toggleButton.style.display = 'none';
+      backButton.style.display = 'block';
+    });
+
+    backButton.addEventListener('click', () => {
+      showTimetable(today);
+      backButton.style.display = 'none';
+      toggleButton.style.display = 'block';
+    });
+
+    function showFullTimetable() {
+        timetableContainer.innerHTML = ''; 
+        dayNameElement.textContent = 'Full Timetable'; 
+        
+        // Create a container for the full timetable
+        const fullTimetableContainer = document.createElement('div');
+        fullTimetableContainer.style.marginTop = '760px'; // Add margin for spacing below header
+        
+        // Iterate through all days for the current user
+        for (let day in currentUserTimetable) {
+          const dayHeader = document.createElement('h3');
+          dayHeader.textContent = day;
+          fullTimetableContainer.appendChild(dayHeader);
+          currentUserTimetable[day].forEach(item => {
+            const div = document.createElement('div');
+            div.classList.add('timetable-item');
+            div.innerHTML = `<strong>${item.person}</strong> - ${item.work}`;
+            fullTimetableContainer.appendChild(div);
+          });
+        }
+        
+        // To show all users' timetables without user codes, we iterate through the userTimetables
+        for (let user in userTimetables) {
+          const userTimetable = userTimetables[user];
+          for (let day in userTimetable) {
+            const dayHeader = document.createElement('h3');
+            dayHeader.textContent = day;
+            fullTimetableContainer.appendChild(dayHeader);
+            userTimetable[day].forEach(item => {
+              const div = document.createElement('div');
+              div.classList.add('timetable-item');
+              div.innerHTML = `<strong>${item.person}</strong> - ${item.work}`;
+              fullTimetableContainer.appendChild(div);
+            });
+          }
+        }
+        
+        timetableContainer.appendChild(fullTimetableContainer); // Append the full timetable container
+    }
+
+    // Register the service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(function(registration) {
+          console.log('Service Worker registered with scope:', registration.scope);
+        }).catch(function(error) {
+          console.error('Service Worker registration failed:', error);
+        });
+    }
+
+    // Handle the installation process
+    window.addEventListener('beforeinstallprompt', (e) => {
+      console.log('beforeinstallprompt Event fired');
+      e.preventDefault(); // Prevent automatic prompt
+      deferredPrompt = e; // Save the event for later use
+      installBtn.style.display = 'block'; // Show the install button
+
+      installBtn.addEventListener('click', () => {
+        installBtn.style.display = 'none'; // Hide the button after user clicks it
+        deferredPrompt.prompt(); // Show the prompt
+        deferredPrompt.userChoice.then((choiceResult) => {
+          if (choiceResult.outcome === 'accepted') {
+            console.log('User accepted the install prompt');
+          } else {
+            console.log('User dismissed the install prompt');
+          }
+          deferredPrompt = null; // Clear the deferredPrompt variable
+        });
+      });
+    });
+
+    // Show install button for testing purposes even if criteria aren't met
+    window.addEventListener('appinstalled', () => {
+      console.log('PWA was installed');
+      installBtn.style.display = 'none'; // Hide the button once installed
+    });
+  </script>
+</body>
+</html>
